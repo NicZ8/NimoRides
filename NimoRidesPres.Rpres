@@ -1,0 +1,109 @@
+Nimo Rides Presentation
+========================================================
+author: Nic Z
+date: 26 Apr 2017
+autosize: true
+
+```{r createDF, echo=FALSE, warning=FALSE, message=FALSE}
+library(httr)
+library(tidyverse)
+library(plyr)
+library(lubridate)
+library(stringr)
+library(leaflet)
+library(plotly)
+
+nimo <- read_csv("nimo.csv")
+```
+
+
+What are Nimo Rides?
+========================================================
+left: 80%
+
+[Melbourne Cycling](https://www.meetup.com/melbournecycling/) is a social Meetup group in Melbourne/Australia. Since June 2016, my husband and I have been event hosts in that group. We lead hard and hilly road rides which have come to be known as Nimo Rides due to our nick names (Nic + Damo = Nimo).
+
+You can use the new interactive Shiny application called [Nimo Rides App](https://nicz8.shinyapps.io/NimoRides/) to explore all the cycling events we have hosted to date. 
+
+The data behind this application is up to date and downloaded through the [Meetup website's API](https://www.meetup.com/meetup_api/).
+
+***
+
+![Happy Cyling!](bicycle_rider.png)
+
+Nimo Rides App functionality
+========================================================
+The App includes three main components (tabs):
+
+ * A beautiful interactive graph showing the date, distance, elevation gain and number of rides for each event
+ * An interactive map with a pin at the starting location for each ride. When you click on a pin you get ride information and a link to the event's website.
+ * An interactive table with data for each ride including title, distance, elevation gain, link to the ride's website and a link to the ride route hosted on [ridewithgps.com](https://www.ridewithgps.com).
+ 
+The app also has calendar fields and sliders which you can use to narrow down the rides you want to explore based on date, ride distance and elevation gain.
+
+The three main components of the app are shown on the next slides.
+
+
+Graph created with `plotly` and Map created with `leaflet`
+========================================================
+
+```{r graph, echo=FALSE, warning=FALSE, message=FALSE}
+p <- plot_ly(nimo, 
+        x = ~date,
+        y = ~distance_km,
+        type = "scatter",       
+        mode = "markers",       
+        size = ~yes_rsvp_count,
+        color = ~vertical_m,
+        hoverinfo = "text",
+              text = ~paste("<b>", event_title, "</b>",
+                            "</br> Date: ", format(date, "%a, %d %b %Y"),
+                            "</br> Distance: ", distance_km, " km",
+                            "</br> Elevation Gain: ", vertical_m, " vm",
+                            "</br> Number of Riders: ", yes_rsvp_count)) %>%
+        layout(xaxis = list(range = c(as.numeric(as_datetime("2016-06-01"))*1000, 
+                                      as.numeric(Sys.time())*1000),
+                            title = "Date"),
+               yaxis = list(title = "Distance (km)")) %>%
+        colorbar(title = "Elevation Gain (vm)")
+htmlwidgets::saveWidget(as.widget(p), file = "nimo_plotly.html")
+```
+
+<iframe src="nimo_plotly.html" style="position:absolute;height:100%;width:100%"></iframe>
+
+***
+
+```{r map, echo=FALSE, warning=FALSE, message=FALSE}
+bicycle_icon <- awesomeIcons(icon = "bicycle", 
+                             library = "fa",
+                             iconColor = "white",
+                             markerColor = "red")
+
+popup_text <- paste("<b>", nimo$href,"</b><br/>", nimo$date, sep = "")
+
+m <- nimo %>% 
+        leaflet() %>%
+        addTiles() %>%
+        addAwesomeMarkers(clusterOptions = markerClusterOptions(),
+                   popup = popup_text,
+                   icon = bicycle_icon)
+htmlwidgets::saveWidget(as.widget(m), file = "nimo_leaflet.html")
+```
+
+<iframe src="nimo_leaflet.html" style="position:absolute;height:100%;width:100%"></iframe>
+
+
+Table created with `DT`
+========================================================
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(DT)
+d <- nimo %>% 
+        select(Title = href_short, Date = date, Distance_km = distance_km, 
+               Elevation_Gain_vm = vertical_m, route_href) %>%
+        datatable(escape = FALSE, colnames = c("Title", "Date", "Distance (km)",
+                                               "Elevation Gain (vm)", "Route Map"))
+htmlwidgets::saveWidget(as.widget(d), file = "nimo_dt.html")                
+```
+
+<iframe src="nimo_dt.html" style="position:absolute;height:100%;width:100%"></iframe>
