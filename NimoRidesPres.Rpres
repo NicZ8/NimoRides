@@ -5,13 +5,9 @@ date: 26 Apr 2017
 autosize: true
 
 ```{r createDF, echo=FALSE, warning=FALSE, message=FALSE}
-library(httr)
+library(knitr)
 library(tidyverse)
-library(plyr)
-library(lubridate)
-library(stringr)
-library(leaflet)
-library(plotly)
+library(scales)
 
 nimo <- read_csv("nimo.csv")
 ```
@@ -41,69 +37,36 @@ The App includes three main components (tabs):
  
 The app also has calendar fields and sliders which you can use to narrow down the rides you want to explore based on date, ride distance and elevation gain.
 
-The three main components of the app are shown on the next slides.
 
-
-Graph created with `plotly` and Map created with `leaflet`
+App Components (Graph)
 ========================================================
-
+left: 40%
 ```{r graph, echo=FALSE, warning=FALSE, message=FALSE}
-p <- plot_ly(nimo, 
-        x = ~date,
-        y = ~distance_km,
-        type = "scatter",       
-        mode = "markers",       
-        size = ~yes_rsvp_count,
-        color = ~vertical_m,
-        hoverinfo = "text",
-              text = ~paste("<b>", event_title, "</b>",
-                            "</br> Date: ", format(date, "%a, %d %b %Y"),
-                            "</br> Distance: ", distance_km, " km",
-                            "</br> Elevation Gain: ", vertical_m, " vm",
-                            "</br> Number of Riders: ", yes_rsvp_count)) %>%
-        layout(xaxis = list(range = c(as.numeric(as_datetime("2016-06-01"))*1000, 
-                                      as.numeric(Sys.time())*1000),
-                            title = "Date"),
-               yaxis = list(title = "Distance (km)")) %>%
-        colorbar(title = "Elevation Gain (vm)")
-htmlwidgets::saveWidget(as.widget(p), file = "nimo_plotly.html")
+ggplot(nimo, aes(date, distance_km, 
+                 size = yes_rsvp_count, colour = vertical_m)) +
+        geom_jitter(alpha = 0.9) +
+        scale_size_continuous(range = c(2, 4)) +
+        scale_x_date(labels = date_format("%b-%Y")) +
+        labs(x = "Date", y = "Distance (km)",
+             title ="Nimo Rides",
+             size = "Number of riders",
+             colour = "Elevation gain (vm)")
 ```
 
-<iframe src="nimo_plotly.html" style="position:absolute;height:100%;width:100%"></iframe>
 
 ***
 
-```{r map, echo=FALSE, warning=FALSE, message=FALSE}
-bicycle_icon <- awesomeIcons(icon = "bicycle", 
-                             library = "fa",
-                             iconColor = "white",
-                             markerColor = "red")
+The graph included in the Shiny app is an interactive version of the graph to the left. Each point represents a cycling event by date on the x-axis and ride distance on the y-axis. The colour of the point indicates the elevation gain of the ride in vertical meters and the size of the point represents the number of riders participating.
 
-popup_text <- paste("<b>", nimo$href,"</b><br/>", nimo$date, sep = "")
-
-m <- nimo %>% 
-        leaflet() %>%
-        addTiles() %>%
-        addAwesomeMarkers(clusterOptions = markerClusterOptions(),
-                   popup = popup_text,
-                   icon = bicycle_icon)
-htmlwidgets::saveWidget(as.widget(m), file = "nimo_leaflet.html")
-```
-
-<iframe src="nimo_leaflet.html" style="position:absolute;height:100%;width:100%"></iframe>
+The app also calculates the total number of rides (`r nrow(nimo)`), total kilometers of all rides (`r sum(nimo$distance_km)` km) and total vertical meters (`r sum(nimo$vertical_m)` vm).
 
 
-Table created with `DT`
+App Components (Table) 
 ========================================================
-
+The table in the app is an interactive version of the (cropped) table below.
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
-library(DT)
 d <- nimo %>% 
         select(Title = href_short, Date = date, Distance_km = distance_km, 
-               Elevation_Gain_vm = vertical_m, route_href) %>%
-        datatable(escape = FALSE, colnames = c("Title", "Date", "Distance (km)",
-                                               "Elevation Gain (vm)", "Route Map"))
-htmlwidgets::saveWidget(as.widget(d), file = "nimo_dt.html")                
+               Elevation_Gain_vm = vertical_m, route_href)
+kable(head(d, 5))                       
 ```
-
-<iframe src="nimo_dt.html" style="position:absolute;height:100%;width:100%"></iframe>
